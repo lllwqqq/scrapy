@@ -8,7 +8,36 @@
 import scrapy
 
 
-class HtwspiderItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+class HtwXjhItem(scrapy.Item):
+    datakey = scrapy.Field()
+    company = scrapy.Field()
+    school = scrapy.Field()
+    address = scrapy.Field()
+    pushTime = scrapy.Field()
+    holdTime = scrapy.Field()
+    xjContent = scrapy.Field()
+    sourceUrl = scrapy.Field()
+    source = scrapy.Field()
+    logo_url = scrapy.Field()
+
+
+class HtwXyzpIterm(scrapy.Item):
+    company = scrapy.Field()
+    pushTime = scrapy.Field()
+    citys = scrapy.Field()
+    sourceUrl = scrapy.Field()
+    logo_url = scrapy.Field()
+
+class HtwXyzpXjhIterm(scrapy.Item):
+    company = scrapy.Field()
+    datakey = scrapy.Field()
+    sourceUrl = scrapy.Field()
+
+class HtwXyzpJobIterm(scrapy.Item):
+    company = scrapy.Field()
+    job = scrapy.Field()
+    sourceUrl = scrapy.Field()
+    source = scrapy.Field()
+
+
+    
