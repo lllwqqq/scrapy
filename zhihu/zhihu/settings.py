@@ -13,7 +13,7 @@ BOT_NAME = 'zhihu'
 
 SPIDER_MODULES = ['zhihu.spiders']
 NEWSPIDER_MODULE = 'zhihu.spiders'
-
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 UBrowser/6.2.4094.1 Safari/537.36'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 #USER_AGENT = 'zhihu (+http://www.yourdomain.com)'
@@ -52,10 +52,10 @@ ROBOTSTXT_OBEY = False
 
 # Enable or disable downloader middlewares
 # See https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
-DOWNLOADER_MIDDLEWARES = {
-   # 'zhihu.middlewares.ZhihuDownloaderMiddleware': 543,
-   'zhihu.middlewares.LoginMiddleware': 500,
-}
+# DOWNLOADER_MIDDLEWARES = {
+#    # 'zhihu.middlewares.ZhihuDownloaderMiddleware': 543,
+#    'zhihu.middlewares.LoginMiddleware': 500,
+# }
 
 # Enable or disable extensions
 # See https://doc.scrapy.org/en/latest/topics/extensions.html
