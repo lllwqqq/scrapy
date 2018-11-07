@@ -27,6 +27,8 @@ class HtwXyzpIterm(scrapy.Item):
     citys = scrapy.Field()
     sourceUrl = scrapy.Field()
     logo_url = scrapy.Field()
+    datakey = scrapy.Field()
+    content = scrapy.Field()
 
 class HtwXyzpXjhIterm(scrapy.Item):
     company = scrapy.Field()

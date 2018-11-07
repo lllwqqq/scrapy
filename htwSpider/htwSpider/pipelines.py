@@ -63,25 +63,29 @@ class HtwspiderPipeline(object):
             citys = item['citys']
             sourceurl = item['sourceUrl']
             logo_url = item['logo_url']
-            sqlstr = """insert into xyzp (company,citys,pushtime,sourceurl,logo_url) VALUES (%s,%s,%s,%s,%s) """
-            self.cur.execute(sqlstr, (company,citys, pushTime, sourceurl,logo_url))
+            datakey = item['datakey']
+            content = item['content']
+            sqlstr = """insert into xyzp (company,citys,pushtime,sourceurl,logo_url,datakey,content) VALUES (%s,%s,%s,%s,%s,%s,%s) """
+            self.cur.execute(sqlstr, (company,citys, pushTime, sourceurl,logo_url,datakey,content))
             self.conn.commit()
             self.cur.close
             self.conn.close
         elif isinstance(item, HtwXyzpJobIterm):
             job = item['job']
+            company = item['company']
             sourceurl = item['sourceUrl']
             source = item['source']
-            sqlstr = """insert into xyzp_job (job,sourceurl,source) VALUES (%s,%s,%s) """
-            self.cur.execute(sqlstr, (job, sourceurl,source))
+            sqlstr = """insert into xyzp_job (job,sourceurl,company,source) VALUES (%s,%s,%s,%s) """
+            self.cur.execute(sqlstr, (job, sourceurl,company,source))
             self.conn.commit()
             self.cur.close
             self.conn.close
         elif isinstance(item, HtwXyzpXjhIterm):
             datakey = item['datakey']
             sourceurl = item['sourceUrl']
-            sqlstr = """insert into xyzp_xjh (datakey,sourceurl) VALUES (%s,%s) """
-            self.cur.execute(sqlstr, (datakey , sourceurl))
+            company = item['company']
+            sqlstr = """insert into xyzp_xjh (datakey,sourceurl,company) VALUES (%s,%s,%s) """
+            self.cur.execute(sqlstr, (datakey , sourceurl,company))
             self.conn.commit()
             self.cur.close
             self.conn.close

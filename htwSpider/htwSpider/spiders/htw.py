@@ -8,11 +8,7 @@ class HtwSpider(scrapy.Spider):
     name = 'htw'
     allowed_domains = ['haitou.cc']
 
-    # //*[@class='grid-view']//*[@class='table cxxt-table']/tbody  一页宣讲会所有信息
-    # //*[@class='grid-view']//*[@class='table cxxt-table']/tbody/tr//a//*[@class='text-success company pull-left']/text()  公司标题
-    # //*[@class='next']//@href 判断下一页，True 则yiled ,false 则break
-    # //*[@class='panel-body article-content'] 选择宣讲简章，注意去除最后的class='article-affix affix-bottom',即'网申入口'、'投递简历'
-    # 校招和宣讲会之间的关系：校招先判断是否有'宣讲会列表'标签,如果有，就取a标签里面的id值，该值为宣讲会对应的招聘简章页面
+
     def __init__(self):
         self.pool = redis.ConnectionPool(host='127.0.0.1', port=6379)
         self.rediscli = redis.Redis(connection_pool=self.pool)
@@ -20,14 +16,23 @@ class HtwSpider(scrapy.Spider):
     def start_requests(self):
         start_urls = ['https://xyzp.haitou.cc', 'https://xjh.haitou.cc/']
         for start_url in start_urls:
-            # if 'xyzp' in start_url:
-            #     tag = 'xyzp'
-            #     yield scrapy.Request(start_url, callback=self.crawlXyzpLists, meta={'start_url': start_url,'tag':tag})
-            if 'xjh' in start_url:
-                tag = 'xjh'
-                yield scrapy.Request(start_url, callback=self.crawlXjhLists, meta={'start_url': start_url,'tag':tag})
+            if 'xyzp' in start_url:
+                tag = 'xyzp'
+                yield scrapy.Request(start_url, callback=self.crawlXyzpLists, meta={'start_url': start_url,'tag':tag})
+            # elif 'xjh' in start_url:
+            #     tag = 'xjh'
+            #     yield scrapy.Request(start_url, callback=self.crawlXjhLists, meta={'start_url': start_url,'tag':tag})
             else:
                 pass
+
+    # 获取城市简称
+    def crawlXjhLists(self, response):
+        if response:
+            citys = response.xpath('//div[contains(@class, "dropdown-city")]/a')
+            for city in citys:
+                start_url = response.meta['start_url']
+                yield scrapy.Request(start_url + '{}'.format(city.xpath('./@data-value').extract_first()), callback=self.crawlNextPage, meta={'start_url': start_url,'tag':response.meta['tag']})
+
 
     def crawlXyzpLists(self, response):
         nextPage = response.xpath("//*[@class='grid-view']/ul/li[@class='next']/a/@href").extract_first()
@@ -47,66 +52,67 @@ class HtwSpider(scrapy.Spider):
         tag = response.meta['tag']
         # 获取校园招聘页面所有内容
         pageLeft = response.xpath("//*[@class='page-left']")
-        # 获取公司内容，包括简章正文、职位列表、宣讲会列表、公司相册等
-        companyInfos = pageLeft.xpath("./div[@class='panel xjh-article-panel panel-content']")
         # 匹配标题span(简章正文、职位列表、宣讲会列表、公司相册等)
-        companyTitles = companyInfos.xpath("./div[@class='panel-heading']/div[@class='panel-title']/span/text()").extract()
-        # 获取标题名字，判断是否关联宣讲会模块里面的宣讲会
+        companyTitles = response.xpath("//div[@class='panel xjh-article-panel panel-content']/div[@class='panel-heading']/div[@class='panel-title']/span/text()").extract()
+        sourceUrl = response.url
+        company = response.meta['company']
+        xjhList = response.xpath("//*[@class='page-left']//div[@class='panel-body xjhlist']//tbody/tr")
+        datakeys = xjhList.xpath("./td[@class='cxxt-title']/a/@href").extract()
+        # 获取标题名字，判断是否关联宣讲会系统里面的宣讲会
         for title in companyTitles:
-            sourceUrl = response.url
-            company = response.meta['company']
-
-            xjhList = response.xpath("//*[@class='page-left']//div[@class='panel-body xjhlist']//tbody/tr")
-            datakeys = xjhList.xpath("./td[@class='cxxt-title']/a/@href").extract()
             if '宣讲会列表' in title:
                 itermXyzpXjh = HtwXyzpXjhIterm()
                 for data in datakeys:
                     datakey = data.split('=')[-1]
-                    xjhArticleUrl = 'https://xjh.haitou.cc/article/{}.html'.format(datakey)
-                    itermXyzpXjh['datakey'] = datakey
-                    itermXyzpXjh['sourceUrl'] = sourceUrl
-                    yield itermXyzpXjh
-                    # 获取到公司对应的宣讲会datakey后，返给解析宣讲会页面函数处理
                     if self.rediscli.get(datakey):
                         pass
                     else:
+                        xjhArticleUrl = 'https://xjh.haitou.cc/article/{}.html'.format(datakey)
+                        itermXyzpXjh['datakey'] = datakey
+                        itermXyzpXjh['company'] = company
+                        itermXyzpXjh['sourceUrl'] = sourceUrl
+                        yield itermXyzpXjh
+                        # 获取到公司对应的宣讲会datakey后，返给解析宣讲会页面函数处理
                         datakeyuuid = hashlib.md5(datakey.encode(encoding='UTF-8')).hexdigest()
                         self.rediscli.set(datakey, datakeyuuid)
                         yield scrapy.Request(xjhArticleUrl, callback=self.parseXjhPage, meta={'company': company, 'datakey': datakey,'tag':tag})
             elif '职位列表' in title:
                 # 获取校园招聘页面职位列表
-                itermXyzp = HtwXyzpIterm()
-                itermXyzpJob = HtwXyzpJobIterm()
-                jobList = pageLeft.xpath(".//div[@class='panel-body']//span/text()").extract()
-                pushTime = pageLeft.xpath(".//div[@class='info-item post-time text-ellipsis']//p[@class='text-ellipsis']/span[2]/text()").extract_first()
-                ucitys = pageLeft.xpath(".//div[@class='info-item cities text-ellipsis']/p[@class='text-ellipsis']/span[@class='item-content']/text()").extract()
-                logo_url = response.xpath("//div[@class='article-logo']/img/@src").extract_first()
-                citys = repr(ucitys).replace("'",'"')
-                itermXyzp['company'] = response.meta['company']
-                itermXyzp['pushTime'] = pushTime
-                itermXyzp['citys'] = citys
-                itermXyzp['sourceUrl'] = sourceUrl
-                itermXyzp['logo_url'] = logo_url
-                source = response.meta['tag']
-                yield itermXyzp
-                for job in jobList:
-                    itermXyzpJob['company'] = company
-                    itermXyzpJob['job'] = job
-                    itermXyzpJob['source'] = source
-                    itermXyzpJob['sourceUrl'] = sourceUrl
-
-                    yield itermXyzpJob
+                pattern = re.compile(r'[^\d]+(\d+)[^\d]+')
+                redatakey = re.findall(pattern, response.url)
+                datakey = redatakey[0]
+                if self.rediscli.get(datakey):
+                    pass
+                else:
+                    datakeyuuid = hashlib.md5(datakey.encode(encoding='UTF-8')).hexdigest()
+                    self.rediscli.set(datakey, datakeyuuid)
+                    itermXyzp = HtwXyzpIterm()
+                    itermXyzpJob = HtwXyzpJobIterm()
+                    jobList = pageLeft.xpath(".//div[@class='panel-body']//span/text()").extract()
+                    pushTime = pageLeft.xpath(".//div[@class='info-item post-time text-ellipsis']//p[@class='text-ellipsis']/span[2]/text()").extract_first()
+                    ucitys = pageLeft.xpath(".//div[@class='info-item cities text-ellipsis']/p[@class='text-ellipsis']/span[@class='item-content']/text()").extract()
+                    logo_url = response.xpath("//div[@class='article-logo']/img/@src").extract_first()
+                    content = response.xpath("//div[@class='panel xjh-article-panel panel-content']/div[@class='panel-body article-content']").extract_first()
+                    citys = repr(ucitys).replace("'", '"')
+                    itermXyzp['company'] = response.meta['company']
+                    itermXyzp['pushTime'] = pushTime
+                    itermXyzp['citys'] = citys
+                    itermXyzp['sourceUrl'] = sourceUrl
+                    itermXyzp['logo_url'] = logo_url
+                    itermXyzp['datakey'] = datakey
+                    itermXyzp['content'] = content
+                    source = response.meta['tag']
+                    yield itermXyzp
+                    for job in jobList:
+                        itermXyzpJob['company'] = company
+                        itermXyzpJob['job'] = job
+                        itermXyzpJob['source'] = source
+                        itermXyzpJob['sourceUrl'] = sourceUrl
+                        yield itermXyzpJob
             else:
                 pass
 
     # 开始爬取宣讲会内容
-    # 获取宣讲会城市简称
-    def crawlXjhLists(self, response):
-        if response:
-            citys = response.xpath('//div[contains(@class, "dropdown-city")]/a')
-            for city in citys:
-                start_url = response.meta['start_url']
-                yield scrapy.Request(start_url + '{}'.format(city.xpath('./@data-value').extract_first()), callback=self.crawlNextPage, meta={'start_url': start_url,'tag':response.meta['tag']})
 
     def crawlNextPage(self, response):
         nextPage = response.xpath("//*[@class='next']//@href").extract_first()
