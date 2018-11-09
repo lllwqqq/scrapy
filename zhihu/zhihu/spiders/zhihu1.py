@@ -26,9 +26,9 @@ class ZhihuSpider(scrapy.Spider):
         # 切换到登陆
         browser.find_element_by_xpath("//div[@class ='SignContainer-switch']/span").click()
         # 输入账号
-        browser.find_element_by_name("username").send_keys("18200386440")
+        browser.find_element_by_name("username").send_keys("USERNAME")
         # 输入密码
-        browser.find_element_by_name("password").send_keys("Qq123456789")
+        browser.find_element_by_name("password").send_keys("PASSWORD")
         # 查看是否有验证码
         Captcha_element = browser.find_element_by_xpath("//form[@class='SignFlow']/div[3]//img")
         Captcha_base64 = Captcha_element.get_attribute('src')
